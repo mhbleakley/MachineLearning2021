@@ -1,3 +1,4 @@
+import pandas as pd
 import yfinance as yf
 from matplotlib import style
 from sklearn import linear_model
@@ -9,54 +10,44 @@ yf.pdr_override()  # yahoo finance override
 
 aapl = pd.read_csv("sp500/stock_dfs/AAPL.csv")
 
-# sma = simple_moving_average(aapl, 50)["50DSMA"][5000:]
-# ema = exponential_moving_average(aapl, 50)["50DEMA"][5000:]
-# MACD = macd(aapl)["26-12MACD"][5000:]
-# adj_close = aapl["Adj Close"][5000:]
-# time = aapl["Date"][5000:]
 
-# plt.plot(time, sma)
-# plt.plot(time, ema)
-# plt.plot(time, MACD)
-# plt.plot(time, adj_close)
-# plt.grid()
-# plt.tight_layout()
-# plt.show()
-
-
-def prep_data(df, future=1, training=False):
-    df.drop(["Open", "High", "Low", "Close", "Volume"], 1, inplace=True)
-    df = simple_moving_average(df, 20)
-    df = exponential_moving_average(df, 20)
-    df = macd(df)
-    if training:
-        for day in range(-1, -future - 1, -1):
-            df["D{} Close".format(-day)] = df["Adj Close"].shift(periods=day)
-        df.drop(df.tail(future).index, inplace=True)
-    df.fillna(0, inplace=True)
-    return df
+def prep_data(df, future=1):
+    ndf = df.copy()
+    ndf.drop(["Open", "High", "Low", "Close", "Volume"], 1, inplace=True)  # leaving date and adj close
+    ndf = simple_moving_average(ndf, 5, False)  # column 2 (0 index)
+    ndf = exponential_moving_average(ndf, 5, False)  # column 3
+    ndf = macd(ndf, 1, False)  # column 4
+    for day in range(-1, -future - 1, -1):
+        ndf["D{} Close".format(-day)] = ndf["Adj Close"].shift(periods=day)
+    ndf.drop(ndf.tail(future).index, inplace=True)
+    ndf.fillna(0, inplace=True)
+    return ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
+    # else:
+    #     ndf.fillna(0, inplace=True)
+    #     return ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
 
 
-print(prep_data(aapl, 5, True))
-# aapl = pd.read_csv("sp500/stock_dfs/AAPL.csv")
-# train = aapl.iloc[4050:]
-# train = prep_data(train, 5, True)
-# aapl = pd.read_csv("sp500/stock_dfs/AAPL.csv")
-# test = aapl.iloc[:4050]
-# test = prep_data(test, 5, False)
-# aapl = pd.read_csv("sp500/stock_dfs/AAPL.csv")
-# aapl = aapl.iloc[:4050]
-# aapl = prep_data(aapl, 5, True)
-# test.drop(test.tail(5).index, inplace=True)
-# reg.fit(train[["Adj Close", "20DSMA", "20DEMA", "12-26MACD"]], train[["D1 Close", "D2 Close", "D3 Close", "D4 Close", "D5 Close"]])
+def isolate_result(prediction, actual, day):
+    adf = actual.copy()
+    pdf = prediction.copy()
+    new_df = pd.DataFrame()
+    new_df["Actual"] = adf["D{} Close".format(day)]
+    new_df["Predicted"] = pdf[day-1][:]
+    return new_df
 
-# test_pred = reg.predict(test[["Adj Close", "20DSMA", "20DEMA", "12-26MACD"]])
-# score = reg.score(test[["Open"]], aapl[["Adj Close"]][4050:])
-# score = reg.score(test[["Adj Close", "20DSMA", "20DEMA", "12-26MACD"]], aapl[["D1 Close", "D2 Close", "D3 Close", "D4 Close", "D5 Close"]])
-# print(score)
-# plt.plot(test["Date"], aapl["Open"].iloc[4050:], "r")
-# plt.plot(test["Date"], aapl["High"].iloc[4050:], "b")
-# plt.plot(test["Date"], test["High"], "g")
+
+X_train, y_train = prep_data(aapl.iloc[:5000], 5)
+X_test, y_test = prep_data(aapl[5000:], 5)
+reg.fit(X_train, y_train)
+y_pred = reg.predict(X_test)
+print(y_pred)
+print(y_test)
+# print(X_test.index)
+print(isolate_result(y_pred, y_test, 4).head())
+
+
+# plt.plot(aapl["Date"][5005:], aapl["Adj Close"][5005:])
+# plt.plot(aapl["Date"][5005:], y_test["D5 Close"])
 # plt.grid()
 # plt.tight_layout()
 # plt.show()

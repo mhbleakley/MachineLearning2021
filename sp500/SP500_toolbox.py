@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def save_sp500_tickers():  # get a list of tickers
+# returns a list of tickers (of the S&P500) from wikpedia
+def save_sp500_tickers():
     resp = requests.get('http://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
     soup = bs.BeautifulSoup(resp.text, 'lxml')
     table = soup.find('table', {'class': 'wikitable sortable'})
@@ -23,7 +24,8 @@ def save_sp500_tickers():  # get a list of tickers
     return tickers
 
 
-def get_data_from_yahoo(reload_sp500=False):  # get data corresponding to those tickers
+# collects tickers information from yahoo finance and saves them as dataframes
+def get_data_from_yahoo(reload_sp500=False):
     if reload_sp500:
         tickers = save_sp500_tickers()
     else:
@@ -44,6 +46,7 @@ def get_data_from_yahoo(reload_sp500=False):  # get data corresponding to those 
             print('Already have {}'.format(ticker))
 
 
+# compiles all the adjusted closes of all stocks into a csv
 def compile_joined_closes():
     with open("sp500tickers.pickle", "rb") as f:  # read bytes
         tickers = pickle.load(f)
@@ -68,6 +71,7 @@ def compile_joined_closes():
     main_df.to_csv("sp500_joined_closes.csv")
 
 
+# compiles all the opens of all stocks into a csv
 def compile_joined_opens():
     with open("sp500tickers.pickle", "rb") as f:  # read bytes
         tickers = pickle.load(f)
@@ -91,6 +95,7 @@ def compile_joined_opens():
     main_df.to_csv("sp500_joined_opens.csv")
 
 
+# compiles all the daily changes of all stocks into a csv
 def compile_percent_deltas():
     with open("sp500tickers.pickle", "rb") as f:  # read bytes
         tickers = pickle.load(f)
@@ -115,6 +120,7 @@ def compile_percent_deltas():
     main_df.to_csv("sp500_percent_deltas_today.csv")
 
 
+# compiles percent change of all stocks from day to day
 def compile_daily_percent_deltas():
     with open("sp500tickers.pickle", "rb") as f:  # read bytes
         tickers = pickle.load(f)
@@ -141,6 +147,7 @@ def compile_daily_percent_deltas():
     main_df.to_csv("sp500_percent_deltas_today.csv")
 
 
+# visualizes day to day stock correlations
 def visualize_data():
     df = pd.read_csv("sp500_percent_deltas.csv")
     df_corr = df.corr()
@@ -168,6 +175,7 @@ def visualize_data():
     print(df_corr.head())
 
 
+# correlation of yesterday's change in price to today's for all stocks
 def delta_correlations():
     df = pd.read_csv("sp500/sp500_percent_deltas.csv")
     main_df = pd.DataFrame()
@@ -185,18 +193,36 @@ def delta_correlations():
     print(main_df.head())
 
 
-def simple_moving_average(df, days):
-    df["{}DSMA".format(days)] = df["Adj Close"].rolling(days).mean()
-    return df
+# takes a stock df and a period in days
+# averages the adjusted close over all those days
+# returns df with SMA column
+def simple_moving_average(df, days, series=True):
+    ndf = df.copy()
+    ndf["{}DSMA".format(days)] = ndf["Adj Close"].rolling(days).mean()
+    if series:
+        return ndf["{}DSMA".format(days)]
+    else:
+        return ndf
 
 
-def exponential_moving_average(df, days):
-    df["{}DEMA".format(days)] = df["Adj Close"].ewm(span=days, adjust=False).mean()
-    return df
+# takes a stock df and a period in days
+# averages the adjusted close over all those days, giving more weight to recent ones
+# returns df with EMA column
+def exponential_moving_average(df, days, series=True):
+    ndf = df.copy()
+    ndf["{}DEMA".format(days)] = ndf["Adj Close"].ewm(span=days, adjust=False).mean()
+    if series:
+        return ndf["{}DEMA".format(days)]
+    else:
+        return ndf
 
 
-def macd(df, period=1):
+def macd(df, period=1, series=True):
+    ndf = df.copy()
     short, long = period * 12, period * 26
-    df["{}-{}MACD".format(short, long)] = exponential_moving_average(df, short)["{}DEMA".format(short)]\
-                                          - exponential_moving_average(df, long)["{}DEMA".format(long)]
-    return df
+    ndf["{}-{}MACD".format(short, long)] = exponential_moving_average(ndf, short)\
+                                           - exponential_moving_average(ndf, long)
+    if series:
+        return ndf["{}-{}MACD".format(short, long)]
+    else:
+        return ndf
