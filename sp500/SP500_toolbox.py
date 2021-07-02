@@ -226,3 +226,19 @@ def macd(df, period=1, series=True):
         return ndf["{}-{}MACD".format(short, long)]
     else:
         return ndf
+
+
+def prep_data(df, future=1, return_date=False):
+    ndf = df.copy()
+    ndf.drop(["Open", "High", "Low", "Close", "Volume"], 1, inplace=True)  # leaving date and adj close
+    ndf = simple_moving_average(ndf, 5, False)  # column 2 (0 index)
+    ndf = exponential_moving_average(ndf, 5, False)  # column 3
+    ndf = macd(ndf, 1, False)  # column 4
+    for day in range(-1, -future - 1, -1):
+        ndf["D{} Close".format(-day)] = ndf["Adj Close"].shift(periods=day)
+    ndf.drop(ndf.tail(future).index, inplace=True)
+    ndf.fillna(0, inplace=True)
+    if return_date:
+        return ndf.iloc[:, 0], ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
+    else:
+        return ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
