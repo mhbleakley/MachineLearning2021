@@ -46,6 +46,22 @@ def get_data_from_yahoo(reload_sp500=False):
             print('Already have {}'.format(ticker))
 
 
+def update_stock(ticker, reload_sp500=False):
+    if reload_sp500:
+        tickers = save_sp500_tickers()
+    else:
+        with open("sp500/sp500tickers.pickle", "rb") as f:
+            tickers = pickle.load(f)
+    if not os.path.exists('sp500/stock_dfs'):
+        os.makedirs('sp500/stock_dfs')
+    start = dt.datetime(1980, 12, 12)
+    end = dt.datetime(2021, 7, 3)
+    df = pdr.get_data_yahoo(ticker, start, end)
+    df.reset_index(inplace=True)
+    df.set_index("Date", inplace=True)
+    df.to_csv('sp500/stock_dfs/{}.csv'.format(ticker))
+
+
 # compiles all the adjusted closes of all stocks into a csv
 def compile_joined_closes():
     with open("sp500tickers.pickle", "rb") as f:  # read bytes
@@ -228,17 +244,33 @@ def macd(df, period=1, series=True):
         return ndf
 
 
-def prep_data(df, future=1, return_date=False):
+def prep_columns(df, future=1, thresh=0.02, sma=None, ema=None, macd=None):
     ndf = df.copy()
-    ndf.drop(["Open", "High", "Low", "Close", "Volume"], 1, inplace=True)  # leaving date and adj close
-    ndf = simple_moving_average(ndf, 5, False)  # column 2 (0 index)
-    ndf = exponential_moving_average(ndf, 5, False)  # column 3
-    ndf = macd(ndf, 1, False)  # column 4
-    for day in range(-1, -future - 1, -1):
-        ndf["D{} Close".format(-day)] = ndf["Adj Close"].shift(periods=day)
+    if sma is not None:
+        for ma in sma:
+            ndf = simple_moving_average(ndf, ma, False)
+    if ema is not None:
+        for ma in ema:
+            ndf = exponential_moving_average(ndf, ma, False)
+    if macd is not None:
+        for ma in macd:
+            ndf = macd(ndf, ma, False)
+    ndf["delta"] = (ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"])/ndf["Adj Close"]
+    ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"])
     ndf.drop(ndf.tail(future).index, inplace=True)
     ndf.fillna(0, inplace=True)
-    if return_date:
-        return ndf.iloc[:, 0], ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
-    else:
-        return ndf.iloc[:, 1:5], ndf.iloc[:, 5:]
+    return ndf
+
+
+def buy_sell_hold(deltas, threshold=0.02):
+    s = pd.Series(data=list(range(len(deltas))))
+    for i, delta in enumerate(deltas):
+        if delta == "NaN":
+            s.iloc[i] = "NaN"
+        if delta > threshold:
+            s.iloc[i] = "BUY"
+        if delta < -threshold:
+            s.iloc[i] = "SELL"
+        else:
+            s.iloc[i] = "HOLD"
+    return s
