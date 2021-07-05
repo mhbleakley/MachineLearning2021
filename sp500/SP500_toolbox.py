@@ -255,22 +255,64 @@ def prep_columns(df, future=1, thresh=0.02, sma=None, ema=None, macd=None):
     if macd is not None:
         for ma in macd:
             ndf = macd(ndf, ma, False)
-    ndf["delta"] = (ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"])/ndf["Adj Close"]
+    # ndf["delta"] = (ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"])/ndf["Adj Close"]
     ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"])
     ndf.drop(ndf.tail(future).index, inplace=True)
+    ndf.drop(columns=["Date"], inplace=True)
     ndf.fillna(0, inplace=True)
     return ndf
 
 
 def buy_sell_hold(deltas, threshold=0.02):
     s = pd.Series(data=list(range(len(deltas))))
+    # print(s)
     for i, delta in enumerate(deltas):
-        if delta == "NaN":
-            s.iloc[i] = "NaN"
         if delta > threshold:
             s.iloc[i] = "BUY"
-        if delta < -threshold:
+        elif delta < -threshold:
             s.iloc[i] = "SELL"
-        else:
+        elif -threshold <= delta <= threshold:
             s.iloc[i] = "HOLD"
+        else:
+            s.iloc[i] = "NaN"
     return s
+
+
+# USELESS FN
+
+# def train_data_linear(ticker, future=1, split=0.75):
+#     model = linear_model.LinearRegression()
+#     stock = pd.read_csv("sp500/stock_dfs/{}.csv".format(ticker))
+#     n = len(stock.iloc[:, 0])
+#     X_train, y_train = prep_data(stock.iloc[5000:10000], future)
+#     # date, X_test, y_test = prep_data(stock[10000:], future, True)
+#     model.fit(X_train, y_train)
+#     return model
+#
+#
+# def test_data_linear(ticker, model, return_date=True, future=1):
+#     stock = pd.read_csv("sp500/stock_dfs/{}.csv".format(ticker))
+#     date, X_test, y_test = prep_data(stock[10000:], future, return_date=True)
+#     y_pred = model.predict(X_test)
+#     print(model.score(X_test, y_test))
+#     predictions = pd.DataFrame().from_records(y_pred)
+#     predictions.transpose()
+#     predictions.columns = ["D{} Predicted".format(i) for i in range(1, future + 1)]
+#     y_test = y_test.shift(periods=future).reset_index()
+#     # y_test = y_test.reset_index()
+#     y_test = y_test.join(predictions)
+#     if return_date:
+#         return y_test, date
+#     return y_test
+#
+#
+# def isolate_result(data, day, date, future=1):
+#     results = pd.DataFrame()
+#     results["Date"] = date
+#     results = results.reset_index()
+#     results = results.drop(columns=["index"])
+#     results["D{} Actual".format(day)] = data["D{} Close".format(day)]
+#     results["D{} Pred.".format(day)] = data["D{} Predicted".format(day)]
+#     results.drop(results.head(future).index, inplace=True)
+#     print(results.tail(20))
+#     return results
