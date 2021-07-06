@@ -25,28 +25,40 @@ yf.pdr_override()  # yahoo finance override
 
 # sp500/stock_dfs/AAPL.csv WINDOWS
 # stock_dfs/AAPL.csv APPLE
+accuracies = []
 
-df = pd.read_csv("stock_dfs/XOM.csv")
-emas = [i for i in range(5, 11)]
-smas = [i for i in range(5, 11)]
-e = [5, 10, 15, 50, 200]
-s = [5, 10, 15, 50, 200]
-df = prep_columns(df, future=30, ema=e, sma=s)
+# update_stocks()
 
-X = df.iloc[:, :len(df.columns) - 2]
-y = df.iloc[:, len(df.columns) - 1]
 
-X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+def ml_train(ticker, future=10, threshold=0.02):
+    df = pd.read_csv("sp500/stock_dfs/{}.csv".format(ticker))
+    dates = df["Date"]
 
-models = [('LR', LogisticRegression(solver='liblinear', multi_class='ovr')), ('LDA', LinearDiscriminantAnalysis()),
-          ('KNN', KNeighborsClassifier()), ('CART', DecisionTreeClassifier()), ('NB', GaussianNB()),
-          ('SVM', SVC(gamma='auto'))]
-results = []
-names = []
-for name, model in models:
-    kfold = StratifiedKFold(n_splits=10, random_state=1, shuffle=True)
-    cv_results = cross_val_score(model, X_train, Y_train, cv=kfold, scoring="accuracy")
-    results.append(cv_results)
-    names.append(name)
-    print("{}: Accuracy {}, Std. ({})".format(str(name), str(round(cv_results.mean(), 5)),
-                                              str(round(cv_results.std(), 5))))
+    emas = [i for i in range(5, 11)]
+    smas = [i for i in range(5, 11)]
+    e = [5, 10, 15, 50, 200]
+    s = [5, 10, 15, 50, 200]
+    df = prep_columns(df, ema=e, sma=s, future=future)
+
+    X = df.iloc[:, :len(df.columns) - 1]
+    y = df.iloc[:, len(df.columns) - 1]
+    X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.2, random_state=1, shuffle=False)
+    print(X_train)
+    models = [('LR', LogisticRegression(solver='liblinear', multi_class='ovr')), ('LDA', LinearDiscriminantAnalysis()),
+              ('KNN', KNeighborsClassifier()), ('CART', DecisionTreeClassifier()), ('NB', GaussianNB()), ('SVM', SVC(gamma='auto'))]  # , ('CART', DecisionTreeClassifier()), ('NB', GaussianNB()), ('SVM', SVC(gamma='auto'))
+    results = []
+    names = []
+    fitted = []
+    bsh = extract_row(df, dates, "2021-06-02")
+
+    for name, model in models:
+        kfold = StratifiedKFold(n_splits=10, random_state=1, shuffle=True)
+        cv_results = cross_val_score(model, X_train, Y_train, cv=kfold, scoring="accuracy")
+        results.append(cv_results)
+        names.append(name)
+        model.fit(X_train, Y_train)
+        ans = model.predict(bsh)
+        print("{}: Accuracy {}, Std. ({}) {}".format(str(name), str(round(cv_results.mean(), 5)), str(round(cv_results.std(), 5)), str(ans[0])))
+
+
+ml_train("MMM", future=20, threshold=0.03)

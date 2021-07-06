@@ -46,20 +46,22 @@ def get_data_from_yahoo(reload_sp500=False):
             print('Already have {}'.format(ticker))
 
 
-def update_stock(ticker, reload_sp500=False):
+def update_stocks(reload_sp500=False):
     if reload_sp500:
         tickers = save_sp500_tickers()
     else:
         with open("sp500/sp500tickers.pickle", "rb") as f:
             tickers = pickle.load(f)
-    if not os.path.exists('sp500/stock_dfs'):
-        os.makedirs('sp500/stock_dfs')
-    start = dt.datetime(1980, 12, 12)
-    end = dt.datetime(2021, 7, 3)
-    df = pdr.get_data_yahoo(ticker, start, end)
-    df.reset_index(inplace=True)
-    df.set_index("Date", inplace=True)
-    df.to_csv('sp500/stock_dfs/{}.csv'.format(ticker))
+    for i, ticker in enumerate(tickers):
+        if not os.path.exists('sp500/stock_dfs'):
+            os.makedirs('sp500/stock_dfs')
+        start = dt.datetime(1970, 1, 1)
+        end = dt.datetime(2021, 7, 6)
+        df = pdr.get_data_yahoo(ticker, start, end)
+        df.reset_index(inplace=True)
+        df.set_index("Date", inplace=True)
+        df.to_csv('sp500/stock_dfs/{}.csv'.format(ticker))
+        print(ticker)
 
 
 # compiles all the adjusted closes of all stocks into a csv
@@ -256,14 +258,14 @@ def prep_columns(df, future=1, thresh=0.02, sma=None, ema=None, macd=None):
         for ma in macd:
             ndf = macd(ndf, ma, False)
     # ndf["delta"] = (ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"])/ndf["Adj Close"]
-    ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"])
+    ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"], threshold=thresh)
     ndf.drop(ndf.tail(future).index, inplace=True)
-    ndf.drop(columns=["Date"], inplace=True)
+    ndf.drop(columns=["Date", "High", "Low", "Close", "Volume", "Open", "Adj Close"], inplace=True)
     ndf.fillna(0, inplace=True)
     return ndf
 
 
-def buy_sell_hold(deltas, threshold=0.02):
+def buy_sell_hold(deltas, threshold=0.1):
     s = pd.Series(data=list(range(len(deltas))))
     # print(s)
     for i, delta in enumerate(deltas):
@@ -277,6 +279,14 @@ def buy_sell_hold(deltas, threshold=0.02):
             s.iloc[i] = "NaN"
     return s
 
+
+def extract_row(df, dates, date):
+    ndf = df.copy()
+    ndf = ndf.join(dates)
+    row = ndf.loc[ndf["Date"] == date].copy()
+    row.drop(columns=["Date", "BSH"], inplace=True)
+
+    return row
 
 # USELESS FN
 
