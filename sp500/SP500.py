@@ -31,7 +31,7 @@ accuracies = []
 
 
 def ml_train(ticker, future=10, threshold=0.02):
-    df = pd.read_csv("sp500/stock_dfs/{}.csv".format(ticker))
+    df = pd.read_csv("stock_dfs/{}.csv".format(ticker))
     dates = df["Date"]
 
     emas = [i for i in range(5, 11)]
@@ -43,7 +43,7 @@ def ml_train(ticker, future=10, threshold=0.02):
     X = df.iloc[:, :len(df.columns) - 1]
     y = df.iloc[:, len(df.columns) - 1]
     X_train, X_test, Y_train, Y_test = train_test_split(X, y, test_size=0.2, random_state=1, shuffle=False)
-    print(X_train)
+
     models = [('LR', LogisticRegression(solver='liblinear', multi_class='ovr')), ('LDA', LinearDiscriminantAnalysis()),
               ('KNN', KNeighborsClassifier()), ('CART', DecisionTreeClassifier()), ('NB', GaussianNB()), ('SVM', SVC(gamma='auto'))]  # , ('CART', DecisionTreeClassifier()), ('NB', GaussianNB()), ('SVM', SVC(gamma='auto'))
     results = []
