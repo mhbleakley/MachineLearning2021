@@ -235,9 +235,8 @@ def exponential_moving_average(df, days, series=True):
         return ndf
 
 
-def macd(df, period=1, series=True):
+def macd(df, short=12, long=26, series=True):
     ndf = df.copy()
-    short, long = period * 12, period * 26
     ndf["{}-{}MACD".format(short, long)] = exponential_moving_average(ndf, short)\
                                            - exponential_moving_average(ndf, long)
     if series:
@@ -246,19 +245,12 @@ def macd(df, period=1, series=True):
         return ndf
 
 
-def prep_columns(df, future=1, thresh=0.02, sma=None, ema=None, macd=None):
+def prep_columns(df, future=1, threshold=0.01, column_set=None):
     ndf = df.copy()
-    if sma is not None:
-        for ma in sma:
-            ndf = simple_moving_average(ndf, ma, False)
-    if ema is not None:
-        for ma in ema:
-            ndf = exponential_moving_average(ndf, ma, False)
-    if macd is not None:
-        for ma in macd:
-            ndf = macd(ndf, ma, False)
-    # ndf["delta"] = (ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"])/ndf["Adj Close"]
-    ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"], threshold=thresh)
+    if column_set is not None:
+        for row in column_set:
+            ndf
+    ndf["BSH"] = buy_sell_hold((ndf["Adj Close"].shift(periods=-future) - ndf["Adj Close"]) / ndf["Adj Close"], threshold=threshold)
     ndf.drop(ndf.tail(future).index, inplace=True)
     ndf.drop(columns=["Date", "High", "Low", "Close", "Volume", "Open", "Adj Close"], inplace=True)
     ndf.fillna(0, inplace=True)
@@ -267,7 +259,6 @@ def prep_columns(df, future=1, thresh=0.02, sma=None, ema=None, macd=None):
 
 def buy_sell_hold(deltas, threshold=0.1):
     s = pd.Series(data=list(range(len(deltas))))
-    # print(s)
     for i, delta in enumerate(deltas):
         if delta > threshold:
             s.iloc[i] = "BUY"
@@ -285,8 +276,21 @@ def extract_row(df, dates, date):
     ndf = ndf.join(dates)
     row = ndf.loc[ndf["Date"] == date].copy()
     row.drop(columns=["Date", "BSH"], inplace=True)
-
     return row
+
+
+def extract_ref_row(df, date):
+    ndf = df.copy()
+    row = ndf.loc[ndf["Date"] == date].copy()
+    return row
+
+
+def basic_average(l):
+    s = 0
+    for i in l:
+        s += i
+    return s/len(l)
+
 
 # USELESS FN
 
