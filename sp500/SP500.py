@@ -28,7 +28,7 @@ yf.pdr_override()  # yahoo finance override
 
 
 def ml_train(ticker, date, future=10, threshold=0.02):
-    df = pd.read_csv("stock_dfs/{}.csv".format(ticker))
+    df = pd.read_csv("sp500/stock_dfs/{}.csv".format(ticker))
     dates = df["Date"]
 
     columns = []

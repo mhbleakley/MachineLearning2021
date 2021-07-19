@@ -1,39 +1,65 @@
-# import matplotlib.pyplot as plt
-# import pandas as pd
-# import yfinance as yf
-# from matplotlib import style
-# import matplotlib.animation as animation
-# from sklearn import linear_model
-# from SP500_toolbox import *
-# import random
-#
-# style.use("dark_background")
-#
-# fig, axs = plt.subplots(1, 1)
-#
-#
-# def random_data_generator(rows=2, cols=10, r=(0, 100)):
-#     data = []
-#     for row in range(rows):
-#         line = []
-#         for col in range(cols):
-#             line.append(random.randint(r[0], r[1]))
-#         data.append(line)
-#     return data
-#
-#
-# def fractal(z, c):
-#
-#
-#
-# def animate_line(i):
-#     x, y = random_data_generator(cols=50)
-#     axs.clear()
-#     # plt.grid(color="#333", alpha=.5)
-#     axs.scatter(x, y, marker=".", color="green")
-#     # axs.minorticks_off()
-#     # axs.tight_layout()
-#
-#
-# ani = animation.FuncAnimation(fig, animate_line, interval=500)
-# plt.show()
+import plotly.graph_objects as go
+
+import pandas as pd
+
+# load dataset
+df = pd.read_csv("stock_dfs/AAPL.csv")
+
+# create figure
+fig = go.Figure()
+
+# Add surface trace
+fig.add_trace(go.Surface(z=df.values.tolist(), colorscale="Viridis"))
+
+# Update plot sizing
+fig.update_layout(
+    width=800,
+    height=900,
+    autosize=True,
+    margin=dict(t=0, b=0, l=0, r=0),
+    template="plotly_white",
+)
+
+# Update 3D scene options
+fig.update_scenes(
+    aspectratio=dict(x=1, y=1, z=0.7),
+    aspectmode="manual"
+)
+
+# Add dropdown
+fig.update_layout(
+    updatemenus=[
+        dict(
+            type = "buttons",
+            direction = "left",
+            buttons=list([
+                dict(
+                    args=["type", "surface"],
+                    label="3D Surface",
+                    method="restyle"
+                ),
+                dict(
+                    args=["type", "heatmap"],
+                    label="Heatmap",
+                    method="restyle"
+                )
+            ]),
+            pad={"r": 10, "t": 10},
+            showactive=True,
+            x=0.11,
+            xanchor="left",
+            y=1.1,
+            yanchor="top"
+        ),
+    ]
+)
+
+# Add annotation
+fig.update_layout(
+    annotations=[
+        dict(text="Trace type:", showarrow=False,
+                             x=0, y=1.08, yref="paper", align="left")
+    ]
+)
+
+fig.show()
